@@ -16,4 +16,4 @@ desktop.ini
 # The persisted index is per-machine state, never committed.
 index.json
 index.md
-/.claude/skill-activation/
+/.claude/activation-engine/

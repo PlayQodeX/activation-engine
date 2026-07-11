@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// skill-activation/activate.mjs — read the persisted index and activate the FULL
+// activation-engine/activate.mjs — read the persisted index and activate the FULL
 // operating stack (rules + guidelines + coordination + memory + skills) that
 // applies to a target folder/repo/workspace. Requires a prior `node scan.mjs`.
 //
@@ -44,7 +44,7 @@ const staleness = ageDays >= 1 ? `${ageDays.toFixed(1)}d old` : `${(ageMs / 3600
 if (listMode) {
   if (asJson) { console.log(JSON.stringify({ ...index, staleness }, null, 2)); process.exit(0) }
   const L = []
-  L.push('skill-activation — saved index')
+  L.push('activation-engine — saved index')
   L.push('='.repeat(50))
   L.push(`scanned : ${index.scannedAt}  (${staleness})`)
   L.push(`host    : ${index.host} (${index.platform})`)

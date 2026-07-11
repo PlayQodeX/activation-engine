@@ -1,6 +1,6 @@
-# skill-activation
+# activation-engine
 
-![skill-activation](assets/banner.png)
+![activation-engine](assets/banner.png)
 
 A **workspace bootstrap** skill for [Claude Code](https://claude.com/claude-code),
 with reusable, editable **instances**.
@@ -9,7 +9,7 @@ Claude's operating rules, guidelines and tools are scattered across many layers 
 a global `~/.claude/CLAUDE.md`, per-repo `CLAUDE.md` / `context.md`, per-app
 overlays, project memory, coordination files, and skills that live globally, in
 plugins, and inside individual repos. At the start of a session Claude has to
-rediscover which of those apply *here*. `skill-activation` makes that one command.
+rediscover which of those apply *here*. `activation-engine` makes that one command.
 
 - **`scan`** — walk the machine **once** and persist an index of every skill,
   rule, guideline, memory and coordination file it can find.
@@ -22,7 +22,7 @@ rediscover which of those apply *here*. `skill-activation` makes that one comman
   set tracks the instances you create.
 
 Zero dependencies (Node `node:` builtins only). Cross-platform. Read-only except
-the state it writes under `~/.claude/skill-activation/` and the generated
+the state it writes under `~/.claude/activation-engine/` and the generated
 `/activate-*` command files under `~/.claude/commands/`.
 
 ## Install
@@ -31,26 +31,26 @@ The skill registers as **`activate`** (see `name:` in `SKILL.md`), so it must be
 installed into a folder named `activate` — clone with that explicit target:
 
 ```bash
-git clone git@github.com:PlayQodeX/skill-activation.git \
+git clone git@github.com:PlayQodeX/activation-engine.git \
   ~/.claude/skills/activate
 ```
 
-(The GitHub repo is named `skill-activation`; the installed skill folder — and the
+(The GitHub repo is named `activation-engine`; the installed skill folder — and the
 command you type — is `activate`.) Invoke it with `/activate` and `/activate scan`.
 
 ## Usage
 
 ```bash
 # 1. Once per machine (and whenever you add skills/rules): build the index.
-node ~/.claude/skills/skill-activation/scan.mjs
+node ~/.claude/skills/activate/scan.mjs
 
 # 2. In any later session, from inside a project: activate it.
-node ~/.claude/skills/skill-activation/activate.mjs
+node ~/.claude/skills/activate/activate.mjs
 
 # activate a specific folder, inspect the index, or get JSON:
-node ~/.claude/skills/skill-activation/activate.mjs d:/code/myapp
-node ~/.claude/skills/skill-activation/activate.mjs --list
-node ~/.claude/skills/skill-activation/scan.mjs --json
+node ~/.claude/skills/activate/activate.mjs d:/code/myapp
+node ~/.claude/skills/activate/activate.mjs --list
+node ~/.claude/skills/activate/scan.mjs --json
 ```
 
 Or just talk to Claude: *"scan my PC for skills and rules"*, then later
@@ -73,8 +73,8 @@ always skipped.
 
 `scan` writes:
 
-- `~/.claude/skill-activation/index.json` — machine index consumed by `activate`.
-- `~/.claude/skill-activation/index.md` — human-readable mirror.
+- `~/.claude/activation-engine/index.json` — machine index consumed by `activate`.
+- `~/.claude/activation-engine/index.md` — human-readable mirror.
 
 `activate` prints the resolved **rule/guideline stack** (global → repo → app →
 memory), the **coordination/state files**, and the **skills** reachable from the
@@ -119,7 +119,7 @@ node $SKILL/instance.mjs delete web        # also removes its /activate-web comm
 node $SKILL/activate.mjs --instance frontend
 ```
 
-Each instance is a JSON file at `~/.claude/skill-activation/instances/<slug>.json`
+Each instance is a JSON file at `~/.claude/activation-engine/instances/<slug>.json`
 with four editable lists:
 
 | Field | Holds | Resolved at activate time to… |
@@ -138,7 +138,7 @@ with `node $SKILL/instance.mjs sync`.
 ## Layout
 
 ```
-skill-activation/
+activation-engine/
 ├── SKILL.md         # the skill (invokes as /activate); documents every command
 ├── scan.mjs         # phase 1 — build & persist the machine index
 ├── activate.mjs     # phase 2 — bootstrap a workspace, or --instance <name>

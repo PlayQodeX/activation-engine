@@ -11,13 +11,13 @@ description: >-
   from my instance".
 ---
 
-# activate (skill-activation)
+# activate (activation-engine)
 
 Three moving parts, so activation is instant, cross-session, and tailorable:
 
 1. **`scan`** — walk the machine ONCE, build a persistent index of every skill,
    rule, guideline, memory and coordination file →
-   `~/.claude/skill-activation/index.json` (+ `index.md` mirror).
+   `~/.claude/activation-engine/index.json` (+ `index.md` mirror).
 2. **`activate`** — in any later session, read that index and activate the exact
    subset that applies to the current (or a given) folder/repo/workspace, then run
    the mandatory pre-flight gates.
@@ -69,7 +69,7 @@ All accept `--json`. `activate` exits `2` if no index exists (run `scan` first),
 
 ## Instances
 
-An instance is a JSON file at `~/.claude/skill-activation/instances/<slug>.json`
+An instance is a JSON file at `~/.claude/activation-engine/instances/<slug>.json`
 holding four editable lists — `skills` (by name), `rules` (file paths),
 `guidelines` (memory slugs, file paths, or freeform text), `roots` (folders the
 bundle is scoped to) — plus a `purpose`. On any mutation the manager regenerates

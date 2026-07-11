@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// skill-activation/scan.mjs — walk the machine ONCE, persist an index of every
+// activation-engine/scan.mjs — walk the machine ONCE, persist an index of every
 // skill / rule / guideline / coordination file so `activate` can bootstrap any
 // workspace instantly in a later session without re-scanning.
 //
@@ -10,7 +10,7 @@
 //   node scan.mjs --depth 8             # recursion depth per root (default 6)
 //   node scan.mjs --json                # also echo the index JSON to stdout
 //
-// Writes ~/.claude/skill-activation/index.json (+ index.md human mirror).
+// Writes ~/.claude/activation-engine/index.json (+ index.md human mirror).
 // Read-only against everything it scans; the ONLY writes are the two index files.
 
 import fs from 'node:fs'
@@ -158,7 +158,7 @@ fs.writeFileSync(INDEX_JSON, JSON.stringify(index, null, 2))
 
 // human mirror
 const md = []
-md.push('# skill-activation — machine index')
+md.push('# activation-engine — machine index')
 md.push('')
 md.push(`- scanned: ${index.scannedAt}`)
 md.push(`- host: ${index.host} (${index.platform})`)
