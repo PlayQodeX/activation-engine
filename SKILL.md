@@ -1,33 +1,39 @@
 ---
 name: activate
 description: >-
-  Two-phase workspace bootstrap. First `scan` indexes the whole machine once —
-  every global/local skill, rule, guideline, memory, and coordination file — and
-  saves it. Then in any later session `activate` reads that saved index and loads
-  the full operating stack that applies to the current folder/repo/workspace,
-  running the mandatory pre-flight gates. Use when the user runs /activate,
-  /activate scan, says "scan my PC for skills/rules", "activate this
-  workspace/repo/folder", "onboard me to this project", "load all the
-  rules/guidelines/skills here", or "what applies in this directory".
+  Workspace bootstrap with reusable instances. `scan` indexes the whole machine
+  once (skills, rules, guidelines, memory, coordination files); `activate` loads
+  the stack for the current folder/repo/workspace and runs the pre-flight gates;
+  `instance` builds named, editable bundles of chosen skills/rules/guidelines,
+  each with its own `/activate-<name>` command. Use on /activate, /activate scan,
+  /activate-<name>, "scan my PC for skills/rules", "activate this workspace",
+  "make an instance/profile with these skills and rules", or "add/remove a skill
+  from my instance".
 ---
 
 # activate (skill-activation)
 
-A two-phase bootstrap so activation is instant and cross-session:
+Three moving parts, so activation is instant, cross-session, and tailorable:
 
 1. **`scan`** — walk the machine ONCE, build a persistent index of every skill,
-   rule, guideline, memory and coordination file. Saved to
-   `~/.claude/skill-activation/index.json` (+ `index.md` human mirror).
+   rule, guideline, memory and coordination file →
+   `~/.claude/skill-activation/index.json` (+ `index.md` mirror).
 2. **`activate`** — in any later session, read that index and activate the exact
-   subset that applies to the current (or a given) folder/repo/workspace, then
-   run the mandatory pre-flight gates.
+   subset that applies to the current (or a given) folder/repo/workspace, then run
+   the mandatory pre-flight gates.
+3. **`instance`** — create named, editable **bundles** of chosen skills + rules +
+   guidelines for a specific purpose (e.g. `frontend`, `security-audit`). Add or
+   remove items any time. Each instance auto-generates its own slash command
+   `/activate-<slug>`, so the runnable command set grows/shrinks with the number
+   of instances.
 
 Works in any project on any PC. Degrades cleanly — folders with no `.claude/`,
-`CLAUDE.md` or memory still produce a valid (smaller) report. Read-only: the only
-writes are the two index files and your own active-tasks registration.
+`CLAUDE.md` or memory still produce a valid (smaller) report. Read-only against
+everything it scans; the only writes are the index files, the instance files, the
+generated command files, and your own active-tasks registration.
 
-`node.mjs` scripts live in this skill dir. Substitute its absolute path for
-`<SKILL>` below (e.g. `~/.claude/skills/skill-activation`).
+Scripts live in this skill dir; substitute its absolute path for `<SKILL>` below
+(e.g. `~/.claude/skills/activate`).
 
 ## Commands
 
@@ -37,19 +43,42 @@ writes are the two index files and your own active-tasks registration.
 | scan (roots) | `node "<SKILL>/scan.mjs" --roots d:\code,e:\work` | Index specific project roots instead of home. |
 | scan (extra) | `node "<SKILL>/scan.mjs" --add-roots d:\code --depth 8` | Home plus extra roots, deeper walk. |
 | **activate** | `node "<SKILL>/activate.mjs" [path]` | Bootstrap the current folder (or `path`) from the saved index. |
-| **list** | `node "<SKILL>/activate.mjs" --list` | Show the saved index summary + staleness. |
-| refresh | re-run `scan` | Rebuild the index. |
+| **activate instance** | `node "<SKILL>/activate.mjs" --instance <name>` | Activate a curated instance bundle. Same as `/activate-<slug>`. |
+| **list** | `node "<SKILL>/activate.mjs" --list` | Saved index summary + staleness. |
+| **instance list/show** | `node "<SKILL>/instance.mjs" list` · `… show <name>` | List instances / inspect one. |
+| **instance create** | `node "<SKILL>/instance.mjs" create <name> [--purpose "…"] [--skills a,b] [--rules p1,p2] [--guidelines "g1;g2"] [--roots r1,r2]` | New bundle + its `/activate-<slug>` command. |
+| **instance add/remove** | `node "<SKILL>/instance.mjs" add <name> --skills x` · `… remove <name> --guidelines "…"` | Edit a bundle's contents. |
+| **instance rename/delete** | `node "<SKILL>/instance.mjs" rename <name> <new>` · `… delete <name>` | Rename / delete (prunes its command). |
+| **instance sync** | `node "<SKILL>/instance.mjs" sync` | Regenerate all `/activate-*` command files + prune orphans. |
 
-All accept `--json` for machine output. `activate` exits `2` if no index exists
-yet — run `scan` first.
+All accept `--json`. `activate` exits `2` if no index exists (run `scan` first),
+`4` if an instance name is unknown.
 
 ## When the user says…
 
-- **"scan my PC" / `/activate scan`** → run `scan.mjs`, report the stats it wrote.
+- **"scan my PC" / `/activate scan`** → run `scan.mjs`, report the stats.
 - **`/activate` / "activate this workspace"** → run `activate.mjs` for cwd, then
   follow the activation procedure below.
-- **first ever use** → if `activate.mjs` exits 2 (no index), run `scan.mjs` first,
-  then `activate.mjs`.
+- **"make an instance/profile with skills X and rules Y"** → run `instance.mjs
+  create <name> …`; report the new `/activate-<slug>` command.
+- **"add/remove <skill|rule|guideline> to/from <instance>"** → run `instance.mjs
+  add|remove <name> …`.
+- **`/activate-<name>` / "activate my <name> instance"** → run `activate.mjs
+  --instance <name>`, then follow the activation procedure for its curated stack.
+- **first ever use** → if `activate.mjs` exits 2 (no index), run `scan.mjs` first.
+
+## Instances
+
+An instance is a JSON file at `~/.claude/skill-activation/instances/<slug>.json`
+holding four editable lists — `skills` (by name), `rules` (file paths),
+`guidelines` (memory slugs, file paths, or freeform text), `roots` (folders the
+bundle is scoped to) — plus a `purpose`. On any mutation the manager regenerates
+`~/.claude/commands/activate-<slug>.md` (a marked, auto-generated slash command)
+and prunes commands for deleted instances. `activate --instance <name>` resolves
+each curated item against the scan index and flags anything missing, so a bundle
+stays honest as skills come and go. Instances are how one machine serves many
+purposes: a lean `frontend` bundle, a `security-audit` bundle, a client-specific
+bundle — each one command away.
 
 ## Activation procedure (after `activate.mjs`)
 

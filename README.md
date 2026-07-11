@@ -2,7 +2,8 @@
 
 ![skill-activation](assets/banner.png)
 
-A two-phase **workspace bootstrap** skill for [Claude Code](https://claude.com/claude-code).
+A **workspace bootstrap** skill for [Claude Code](https://claude.com/claude-code),
+with reusable, editable **instances**.
 
 Claude's operating rules, guidelines and tools are scattered across many layers —
 a global `~/.claude/CLAUDE.md`, per-repo `CLAUDE.md` / `context.md`, per-app
@@ -15,9 +16,14 @@ rediscover which of those apply *here*. `skill-activation` makes that one comman
 - **`activate`** — in any later session, read that saved index and load the exact
   subset that applies to the current folder / repo / workspace, ordered
   broad → narrow, then walk the mandatory pre-flight gates.
+- **`instance`** — build named, editable **bundles** of chosen skills + rules +
+  guidelines for a specific purpose. Add/remove items any time. Each instance
+  gets its own generated slash command `/activate-<name>`, so the runnable command
+  set tracks the instances you create.
 
 Zero dependencies (Node `node:` builtins only). Cross-platform. Read-only except
-the index it writes to `~/.claude/skill-activation/`.
+the state it writes under `~/.claude/skill-activation/` and the generated
+`/activate-*` command files under `~/.claude/commands/`.
 
 ## Install
 
@@ -83,13 +89,60 @@ target, then Claude runs the pre-flight gates documented in `SKILL.md`.
 4. `skills` = global + plugin skills, plus workspace skills whose owning project
    contains the target or sits under the repo root.
 
+## Instances
+
+An **instance** is a named bundle you tailor to a purpose — a lean `frontend`
+bundle, a `security-audit` bundle, a client-specific bundle — each one command
+away.
+
+```bash
+SKILL=~/.claude/skills/activate
+
+# create a bundle
+node $SKILL/instance.mjs create frontend \
+  --purpose "UI work on Next apps" \
+  --skills rules-guard,visual-review,ui-ux-pro-max \
+  --rules "~/.claude/CLAUDE.md" \
+  --guidelines "feedback_modal_branding;feedback_no_horizontal_scroll;test at mobile width"
+
+# edit it later
+node $SKILL/instance.mjs add    frontend --skills handoff
+node $SKILL/instance.mjs remove frontend --guidelines "test at mobile width"
+
+# inspect / manage
+node $SKILL/instance.mjs list
+node $SKILL/instance.mjs show   frontend
+node $SKILL/instance.mjs rename frontend web
+node $SKILL/instance.mjs delete web        # also removes its /activate-web command
+
+# activate it (equivalent to the generated /activate-frontend command)
+node $SKILL/activate.mjs --instance frontend
+```
+
+Each instance is a JSON file at `~/.claude/skill-activation/instances/<slug>.json`
+with four editable lists:
+
+| Field | Holds | Resolved at activate time to… |
+|-------|-------|-------------------------------|
+| `skills` | skill names | the global / workspace / plugin skill (flagged **MISSING** if not indexed) |
+| `rules` | file paths | the file (e.g. a specific `CLAUDE.md`) |
+| `guidelines` | memory slugs · file paths · freeform text | a memory file, a file, or a literal note |
+| `roots` | folders | scope for memory / coordination resolution |
+
+Creating, editing, renaming or deleting an instance **regenerates the slash
+commands**: `~/.claude/commands/activate-<slug>.md` is written for every instance
+and pruned for any that no longer exists. Those command files are marked as
+generated, so hand-written commands are never touched. Re-sync manually any time
+with `node $SKILL/instance.mjs sync`.
+
 ## Layout
 
 ```
 skill-activation/
 ├── SKILL.md         # the skill (invokes as /activate); documents every command
-├── scan.mjs         # phase 1 — build & persist the index
-├── activate.mjs     # phase 2 — bootstrap a workspace from the index
+├── scan.mjs         # phase 1 — build & persist the machine index
+├── activate.mjs     # phase 2 — bootstrap a workspace, or --instance <name>
+├── instance.mjs     # manage instances + generate per-instance slash commands
 └── lib/common.mjs   # shared, dependency-free helpers
 ```
 
