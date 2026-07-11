@@ -44,25 +44,33 @@ Scripts live in this skill dir; substitute its absolute path for `<SKILL>` below
 | scan (extra) | `node "<SKILL>/scan.mjs" --add-roots d:\code --depth 8` | Home plus extra roots, deeper walk. |
 | **activate** | `node "<SKILL>/activate.mjs" [path]` | Bootstrap the current folder (or `path`) from the saved index. |
 | **activate instance** | `node "<SKILL>/activate.mjs" --instance <name>` | Activate a curated instance bundle. Same as `/activate-<slug>`. |
-| **list** | `node "<SKILL>/activate.mjs" --list` | Saved index summary + staleness. |
-| **instance list/show** | `node "<SKILL>/instance.mjs" list` · `… show <name>` | List instances / inspect one. |
-| **instance create** | `node "<SKILL>/instance.mjs" create <name> [--purpose "…"] [--skills a,b] [--rules p1,p2] [--guidelines "g1;g2"] [--roots r1,r2]` | New bundle + its `/activate-<slug>` command. |
+| **activate default** | `node "<SKILL>/activate.mjs" --default` | Activate the current repo's default instance. |
+| **list** | `node "<SKILL>/activate.mjs" --list` | Saved index summary + staleness + new-since-scan. |
+| **instance list/show** | `node "<SKILL>/instance.mjs" list [--grep <term>]` · `… show <name>` | List/search instances, inspect one. |
+| **instance create** | `node "<SKILL>/instance.mjs" create <name> [--purpose "…"] [--skills a,b] [--rules p1,p2] [--guidelines "g1;g2"] [--roots r]` | New bundle + its `/activate-<slug>` command. |
+| **instance from-active** | `node "<SKILL>/instance.mjs" create <name> --from-active [--path <dir>]` | Seed a bundle from the folder's live resolved stack. |
 | **instance add/remove** | `node "<SKILL>/instance.mjs" add <name> --skills x` · `… remove <name> --guidelines "…"` | Edit a bundle's contents. |
 | **instance rename/delete** | `node "<SKILL>/instance.mjs" rename <name> <new>` · `… delete <name>` | Rename / delete (prunes its command). |
+| **instance default** | `node "<SKILL>/instance.mjs" default <name> [--for <path> \| --global]` · `… default --clear` | Set/clear the default instance for a repo or globally. |
+| **instance export/import** | `node "<SKILL>/instance.mjs" export <name> [--out f]` · `… import <file> [--name n]` | Share a bundle as portable JSON (home paths → `~`). |
 | **instance sync** | `node "<SKILL>/instance.mjs" sync` | Regenerate all `/activate-*` command files + prune orphans. |
 
 All accept `--json`. `activate` exits `2` if no index exists (run `scan` first),
-`4` if an instance name is unknown.
+`4` if an instance name is unknown, `5` if no default is set.
 
 ## When the user says…
 
-- **"scan my PC" / `/activate scan`** → run `scan.mjs`, report the stats.
+- **"scan my PC" / `/activate scan`** → run `scan.mjs`, report the stats (incl. any
+  new-since-last-scan skills to vet).
 - **`/activate` / "activate this workspace"** → run `activate.mjs` for cwd, then
   follow the activation procedure below.
 - **"make an instance/profile with skills X and rules Y"** → run `instance.mjs
-  create <name> …`; report the new `/activate-<slug>` command.
+  create <name> …`; for "…like this folder" add `--from-active`. Report the new
+  `/activate-<slug>` command.
 - **"add/remove <skill|rule|guideline> to/from <instance>"** → run `instance.mjs
   add|remove <name> …`.
+- **"make X the default here" / "share/export my instance"** → `instance.mjs
+  default …` / `export …` / `import …`.
 - **`/activate-<name>` / "activate my <name> instance"** → run `activate.mjs
   --instance <name>`, then follow the activation procedure for its curated stack.
 - **first ever use** → if `activate.mjs` exits 2 (no index), run `scan.mjs` first.
@@ -75,8 +83,11 @@ holding four editable lists — `skills` (by name), `rules` (file paths),
 bundle is scoped to) — plus a `purpose`. On any mutation the manager regenerates
 `~/.claude/commands/activate-<slug>.md` (a marked, auto-generated slash command)
 and prunes commands for deleted instances. `activate --instance <name>` resolves
-each curated item against the scan index and flags anything missing, so a bundle
-stays honest as skills come and go. Instances are how one machine serves many
+each curated item against the scan index and **flags missing skills, untrusted
+(third-party/plugin) skills, and skills new since the last scan** — so a bundle
+stays honest as skills come and go. `--from-active` seeds a bundle from a folder's
+live stack; `export`/`import` move bundles between machines; a per-repo (or global)
+`default` powers `/activate --default`. Instances are how one machine serves many
 purposes: a lean `frontend` bundle, a `security-audit` bundle, a client-specific
 bundle — each one command away.
 

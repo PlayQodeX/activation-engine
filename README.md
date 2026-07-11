@@ -109,11 +109,22 @@ node $SKILL/instance.mjs create frontend \
 node $SKILL/instance.mjs add    frontend --skills handoff
 node $SKILL/instance.mjs remove frontend --guidelines "test at mobile width"
 
-# inspect / manage
-node $SKILL/instance.mjs list
+# seed a bundle from the folder you're in (its live resolved stack)
+node $SKILL/instance.mjs create ledgerdev --from-active --path d:/code/ledger
+
+# inspect / search / manage
+node $SKILL/instance.mjs list --grep ledger
 node $SKILL/instance.mjs show   frontend
 node $SKILL/instance.mjs rename frontend web
 node $SKILL/instance.mjs delete web        # also removes its /activate-web command
+
+# defaults: make one the default here, then activate it with --default
+node $SKILL/instance.mjs default frontend --for d:/code/app
+node $SKILL/activate.mjs --default          # activates this repo's default
+
+# share across machines
+node $SKILL/instance.mjs export frontend --out frontend.json
+node $SKILL/instance.mjs import frontend.json --name frontend-copy
 
 # activate it (equivalent to the generated /activate-frontend command)
 node $SKILL/activate.mjs --instance frontend
@@ -124,7 +135,7 @@ with four editable lists:
 
 | Field | Holds | Resolved at activate time to… |
 |-------|-------|-------------------------------|
-| `skills` | skill names | the global / workspace / plugin skill (flagged **MISSING** if not indexed) |
+| `skills` | skill names | the global / workspace / plugin skill — flagged **MISSING** (not indexed), **⚠untrusted** (third-party/plugin), or **✦new** (added since last scan) |
 | `rules` | file paths | the file (e.g. a specific `CLAUDE.md`) |
 | `guidelines` | memory slugs · file paths · freeform text | a memory file, a file, or a literal note |
 | `roots` | folders | scope for memory / coordination resolution |
@@ -134,6 +145,21 @@ commands**: `~/.claude/commands/activate-<slug>.md` is written for every instanc
 and pruned for any that no longer exists. Those command files are marked as
 generated, so hand-written commands are never touched. Re-sync manually any time
 with `node $SKILL/instance.mjs sync`.
+
+### Borrowed from Obsidian
+
+The design mirrors patterns from [Obsidian](https://obsidian.md/)'s vaults /
+workspaces / plugin model:
+
+- **`--from-active`** — like "save current layout as workspace": snapshot the stack
+  a folder resolves to, instead of hand-listing every item.
+- **`export` / `import`** — like syncing vault config: bundles become portable,
+  shareable JSON (home paths collapse to `~`).
+- **Trust flags** — like Restricted Mode: `scan` marks third-party plugin skills
+  **untrusted** and flags anything **new since the last scan**, surfaced at activate.
+- **`default` + `--default`** — like the workspace quick-switcher: a per-repo (or
+  global) default instance, one flag to activate.
+- **`list --grep`** — like the settings search added in Obsidian 1.13.
 
 ## Layout
 

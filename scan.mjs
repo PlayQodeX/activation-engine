@@ -18,7 +18,7 @@ import path from 'node:path'
 import os from 'node:os'
 import {
   HOME, GLOBAL_CLAUDE, STATE_DIR, INDEX_JSON, INDEX_MD,
-  exists, isDir, listSkills, skillMeta, walk, rel,
+  exists, isDir, read, listSkills, skillMeta, walk, rel,
 } from './lib/common.mjs'
 
 const args = process.argv.slice(2)
@@ -43,7 +43,7 @@ function scanGlobal() {
   const g = {
     claudeMd: exists(path.join(GLOBAL_CLAUDE, 'CLAUDE.md')) ? path.join(GLOBAL_CLAUDE, 'CLAUDE.md') : null,
     rtkMd: exists(path.join(GLOBAL_CLAUDE, 'RTK.md')) ? path.join(GLOBAL_CLAUDE, 'RTK.md') : null,
-    skills: listSkills(path.join(GLOBAL_CLAUDE, 'skills')),
+    skills: listSkills(path.join(GLOBAL_CLAUDE, 'skills')).map((s) => ({ ...s, trusted: true })),
     commands: [],
     pluginSkills: [],
     memory: [],
@@ -61,7 +61,8 @@ function scanGlobal() {
       for (const s of listSkills(dir)) {
         if (seen.has(s.name)) continue // collapse marketplace/cache mirrors
         seen.add(s.name)
-        g.pluginSkills.push({ name: s.name, dir: s.dir })
+        // plugin skills are third-party by default -> untrusted until vouched for
+        g.pluginSkills.push({ name: s.name, dir: s.dir, trusted: false })
       }
     },
   })
@@ -105,7 +106,7 @@ function scanRoots() {
             const key = path.resolve(s.dir)
             if (seenSkill.has(key)) continue
             seenSkill.add(key)
-            workspaceSkills.push(s)
+            workspaceSkills.push({ ...s, trusted: true })
           }
         }
         // .claude/active-tasks.md
@@ -153,6 +154,26 @@ const index = {
   },
 }
 
+// mark skills NEW since the previous scan so activation can flag freshly-added ones
+const prev = exists(INDEX_JSON) ? (() => { try { return JSON.parse(read(INDEX_JSON)) } catch { return null } })() : null
+if (prev) {
+  index.previousScannedAt = prev.scannedAt || null
+  const prevIds = new Set()
+  for (const s of prev.global?.skills || []) prevIds.add('g:' + s.name.toLowerCase())
+  for (const s of prev.global?.pluginSkills || []) prevIds.add('p:' + s.name.toLowerCase())
+  for (const s of prev.workspaceSkills || []) prevIds.add('w:' + path.resolve(s.dir).toLowerCase())
+  const marks = []
+  for (const s of index.global.skills) if (!prevIds.has('g:' + s.name.toLowerCase())) { s.new = true; marks.push('global:' + s.name) }
+  for (const s of index.global.pluginSkills) if (!prevIds.has('p:' + s.name.toLowerCase())) { s.new = true; marks.push('plugin:' + s.name) }
+  for (const s of index.workspaceSkills) if (!prevIds.has('w:' + path.resolve(s.dir).toLowerCase())) { s.new = true; marks.push('workspace:' + s.name) }
+  index.newSinceLastScan = marks
+} else {
+  index.previousScannedAt = null
+  index.newSinceLastScan = [] // first scan: baseline, nothing counts as new
+}
+index.stats.newSinceLastScan = index.newSinceLastScan.length
+index.stats.untrustedPluginSkills = index.global.pluginSkills.length
+
 fs.mkdirSync(STATE_DIR, { recursive: true })
 fs.writeFileSync(INDEX_JSON, JSON.stringify(index, null, 2))
 
@@ -167,6 +188,11 @@ md.push('')
 md.push('## Stats')
 for (const [k, v] of Object.entries(index.stats)) md.push(`- ${k}: ${v}`)
 md.push('')
+if (index.newSinceLastScan.length) {
+  md.push(`## New since last scan (${index.newSinceLastScan.length})`)
+  for (const n of index.newSinceLastScan) md.push(`- ${n}`)
+  md.push('')
+}
 md.push(`## Global skills (${global_.skills.length})`)
 for (const s of global_.skills) md.push(`- **${s.name}** — ${s.description.slice(0, 100)}`)
 md.push('')
@@ -186,5 +212,11 @@ fs.writeFileSync(INDEX_MD, md.join('\n'))
 console.error(`[scan] indexed in ${roots.length} root(s) @ depth ${depth}`)
 console.error(`[scan] wrote ${rel(INDEX_JSON)}`)
 for (const [k, v] of Object.entries(index.stats)) console.error(`         ${k}: ${v}`)
+if (index.newSinceLastScan.length) {
+  console.error(`[scan] NEW since last scan (${index.newSinceLastScan.length}): ${index.newSinceLastScan.slice(0, 12).join(', ')}${index.newSinceLastScan.length > 12 ? ' …' : ''}`)
+  console.error('[scan] review new/untrusted skills before curating them into an instance.')
+} else if (prev) {
+  console.error('[scan] no new skills since last scan.')
+}
 
 if (asJson) console.log(JSON.stringify(index, null, 2))

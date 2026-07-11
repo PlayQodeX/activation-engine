@@ -5,14 +5,19 @@
 // so the runnable command set always tracks the instances that exist.
 //
 // Verbs:
-//   list
+//   list   [--grep <term>] [--json]
 //   show   <name> [--json]
-//   create <name> [--purpose "…"] [--skills a,b] [--rules p1,p2] [--guidelines "g1","g2"] [--roots r1,r2]
+//   create <name> [--purpose "…"] [--skills a,b] [--rules p1,p2] [--guidelines "g1;g2"] [--roots r1,r2]
+//   create <name> --from-active [--path <dir>]   # seed from the active workspace stack
 //   add    <name> [--skills a,b] [--rules p] [--guidelines "…"] [--roots r]
 //   remove <name> [--skills a,b] [--rules p] [--guidelines "…"] [--roots r]
 //   rename <name> <newName>
 //   delete <name>
-//   sync                      # regenerate all command files + prune orphans
+//   default <name> [--for <path> | --global]     # set default instance for a repo / globally
+//   default --clear [--for <path> | --global]
+//   export <name> [--out <file>]                 # portable JSON (home paths -> ~)
+//   import <file> [--name <newName>] [--force]
+//   sync                                         # regenerate all command files + prune orphans
 //
 // Instances persist in ~/.claude/activation-engine/instances/<slug>.json.
 
@@ -20,8 +25,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  INSTANCES_DIR, COMMANDS_DIR, CMD_PREFIX, CMD_MARKER,
-  exists, read, kebab, listInstances, readInstance, writeInstance, deleteInstance, rel,
+  INSTANCES_DIR, COMMANDS_DIR, CMD_PREFIX, CMD_MARKER, INDEX_JSON,
+  exists, read, kebab, slugOf, listInstances, readInstance, writeInstance, deleteInstance, rel,
+  readState, writeState, resolveWorkspace, collapseHome, expandHome,
 } from './lib/common.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -103,10 +109,15 @@ function report(inst) {
 // ---- verbs ------------------------------------------------------------------
 switch (verb) {
   case 'list': {
-    const items = listInstances()
+    let items = listInstances()
+    const g = opt('--grep')
+    if (g) {
+      const q = g.toLowerCase()
+      items = items.filter((i) => (`${i.name} ${i.purpose || ''} ${[...(i.skills || []), ...(i.rules || []), ...(i.guidelines || [])].join(' ')}`).toLowerCase().includes(q))
+    }
     if (has('--json')) { console.log(JSON.stringify(items, null, 2)); break }
-    console.log(`activation-engine — ${items.length} instance(s):`)
-    if (!items.length) console.log('  (none — create one: instance create <name> …)')
+    console.log(`activation-engine — ${items.length} instance(s)${g ? ` matching "${g}"` : ''}:`)
+    if (!items.length) console.log(g ? '  (no matches)' : '  (none — create one: instance create <name> …)')
     for (const i of items) report(i)
     break
   }
@@ -131,11 +142,24 @@ switch (verb) {
     if (!slug) die('name produced an empty slug; use letters/numbers')
     if (exists(path.join(INSTANCES_DIR, slug + '.json'))) die(`instance "${slug}" already exists (use add/remove)`, 2)
     const f = collect(true)
+    // --from-active: seed from the operating stack the scan resolves for a folder
+    const seed = { skills: [], rules: [], guidelines: [], roots: [] }
+    if (has('--from-active')) {
+      if (!exists(INDEX_JSON)) die('no index found — run the scan first (scan.mjs / /activate scan)', 2)
+      const index = JSON.parse(read(INDEX_JSON))
+      const at = opt('--path') ? path.resolve(opt('--path')) : process.cwd()
+      const ws = resolveWorkspace(index, at)
+      seed.skills = ws.workspaceSkills.map((s) => s.name)
+      seed.rules = ws.ruleStack.filter((r) => r.scope !== 'global').map((r) => collapseHome(r.path)) // globals are always-on
+      if (ws.memory) seed.guidelines = [collapseHome(ws.memory.path)]
+      seed.roots = [ws.repoRoot]
+      console.log(`[instance] --from-active seeded from ${ws.repoRoot}`)
+    }
     const inst = {
       name, slug, purpose: opt('--purpose') || '',
       created: now(), updated: now(),
-      skills: uniq(f.skills), rules: uniq(f.rules),
-      guidelines: uniq(f.guidelines), roots: uniq(f.roots),
+      skills: uniq([...seed.skills, ...f.skills]), rules: uniq([...seed.rules, ...f.rules]),
+      guidelines: uniq([...seed.guidelines, ...f.guidelines]), roots: uniq([...seed.roots, ...f.roots]),
     }
     writeInstance(inst)
     const s = syncCommands()
@@ -195,6 +219,73 @@ switch (verb) {
     break
   }
 
+  case 'default': {
+    const st = readState(); st.defaults = st.defaults || {}
+    // resolve the state key: global '*' or a repo root slug
+    const keyFor = () => {
+      if (has('--global')) return '*'
+      const at = opt('--for') ? path.resolve(opt('--for')) : process.cwd()
+      let root = at
+      if (exists(INDEX_JSON)) { try { root = resolveWorkspace(JSON.parse(read(INDEX_JSON)), at).repoRoot } catch { /* keep at */ } }
+      return slugOf(root)
+    }
+    if (has('--clear')) {
+      const key = keyFor()
+      if (st.defaults[key]) { delete st.defaults[key]; writeState(st); console.log(`[instance] cleared default for ${key === '*' ? '(global)' : key}`) }
+      else console.log(`[instance] no default set for ${key === '*' ? '(global)' : key}`)
+      break
+    }
+    const name = positionals[0] || die('default <name> [--for <path> | --global]  |  default --clear […]')
+    const inst = readInstance(name) || die(`no such instance: ${name}`, 2)
+    const key = keyFor()
+    st.defaults[key] = inst.slug
+    writeState(st)
+    console.log(`[instance] default for ${key === '*' ? '(global)' : key} = ${inst.slug}  ->  activate with /${CMD_PREFIX}${inst.slug} or  activate --default`)
+    break
+  }
+
+  case 'export': {
+    const name = positionals[0] || die('export <name> [--out <file>]')
+    const inst = readInstance(name) || die(`no such instance: ${name}`, 2)
+    const portable = {
+      schema: 'activation-engine/instance@1',
+      name: inst.name, purpose: inst.purpose || '',
+      skills: inst.skills || [],
+      rules: (inst.rules || []).map(collapseHome),
+      guidelines: (inst.guidelines || []).map(collapseHome),
+      roots: (inst.roots || []).map(collapseHome),
+    }
+    const json = JSON.stringify(portable, null, 2)
+    const outFile = opt('--out')
+    if (outFile) { fs.writeFileSync(path.resolve(outFile), json); console.log(`[instance] exported "${inst.name}" -> ${path.resolve(outFile)}`) }
+    else console.log(json)
+    break
+  }
+
+  case 'import': {
+    const file = positionals[0] || die('import <file.json> [--name <newName>] [--force]')
+    const abs = path.resolve(file)
+    if (!exists(abs)) die(`file not found: ${abs}`, 2)
+    let data; try { data = JSON.parse(read(abs)) } catch { die('not valid JSON', 2) }
+    const name = opt('--name') || data.name
+    if (!name) die('import file has no "name" — pass --name <newName>', 2)
+    const slug = kebab(name)
+    if (!slug) die('name produced an empty slug')
+    if (exists(path.join(INSTANCES_DIR, slug + '.json')) && !has('--force')) die(`instance "${slug}" already exists (use --name or --force)`, 2)
+    const inst = {
+      name, slug, purpose: data.purpose || '', created: now(), updated: now(),
+      skills: uniq(data.skills || []),
+      rules: uniq((data.rules || []).map(expandHome)),
+      guidelines: uniq((data.guidelines || []).map(expandHome)),
+      roots: uniq((data.roots || []).map(expandHome)),
+    }
+    writeInstance(inst)
+    syncCommands()
+    console.log(`[instance] imported -> "${name}" (/${CMD_PREFIX}${slug})`)
+    report(inst)
+    break
+  }
+
   case 'sync': {
     const s = syncCommands()
     console.log(`[instance] synced ${s.written} command(s), pruned ${s.pruned} orphan(s) in ${rel(COMMANDS_DIR)}`)
@@ -202,5 +293,5 @@ switch (verb) {
   }
 
   default:
-    die(`unknown verb "${verb || ''}". Use: list | show | create | add | remove | rename | delete | sync`, 2)
+    die(`unknown verb "${verb || ''}". Use: list | show | create | add | remove | rename | delete | default | export | import | sync`, 2)
 }
