@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>activation-engine — command reference</title>
+<style>
+  :root{--bg:#0b0b12;--card:#14121f;--line:rgba(255,255,255,.08);--txt:#e8e6f0;--mut:#9a95b5;--acc:#a78bfa;--acc2:#7dd3fc;--code:#0f0e17}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:48px 24px 96px}
+  header{border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:32px}
+  .eyebrow{color:var(--acc);font-weight:700;letter-spacing:.14em;font-size:12px;text-transform:uppercase}
+  h1{font-size:44px;margin:.2em 0 .1em;letter-spacing:-.02em}
+  .tag{color:var(--mut);font-size:18px;max-width:60ch}
+  nav{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 0}
+  nav a{color:var(--mut);text-decoration:none;font-size:13px;border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+  nav a:hover{color:var(--txt);border-color:var(--acc)}
+  section{margin:36px 0}
+  h2{font-size:22px;margin:0 0 14px;padding-top:8px;color:#fff}
+  p{margin:0 0 14px;color:#d7d4e6}
+  a{color:var(--acc2)}
+  code{background:var(--code);border:1px solid var(--line);border-radius:5px;padding:.1em .4em;font:13.5px/1.5 "SFMono-Regular",Consolas,"Liberation Mono",monospace;color:#cfe8ff}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow:auto}
+  pre code{background:none;border:0;padding:0;color:#cdd6f4}
+  .tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:14.5px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:rgba(167,139,250,.08);color:#fff;font-weight:600;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  td code{white-space:nowrap}
+  ul{margin:0 0 14px;padding-left:22px}li{margin:.25em 0;color:#d7d4e6}
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);color:var(--mut);font-size:13px}
+  @media(max-width:560px){h1{font-size:34px}.wrap{padding:32px 16px 64px}}
+</style></head>
+<body><div class="wrap">
+<header>
+  <div class="eyebrow">Claude Code skill</div>
+  <h1>activation-engine</h1>
+  <div class="tag">A Claude Code skill that loads the right rules and skills for the folder you are working in — automatically, before the first edit.</div>
+  <p>Claude's instructions are scattered: a global <code>~/.claude/CLAUDE.md</code>, a <code>CLAUDE.md</code> per repo, per-app overlays, project memory, coordination files, and skills that live globally, in plugins, and inside individual repos. Every session, Claude has to rediscover which of those actually apply here.</p><p>activation-engine indexes all of it once, then loads the exact subset that applies to your current folder — in one command. It also lets you save reusable <strong>instances</strong>: named bundles of skills + rules + guidelines, each with its own <code>/activate-&lt;name&gt;</code> command.</p>
+  <nav><a href="#install">Install</a><a href="#everyday">Everyday commands</a><a href="#instances">Instance commands</a><a href="#flags">Flags (any command)</a><a href="#when">When to use what</a><a href="#how">How activation works</a><a href="#files">Where things live</a></nav>
+</header>
+<section id="install"><h2>Install</h2><p>The skill is invoked as <code>/activate</code>, so it must live in a folder named <code>activate</code>. Clone it there, then generate its commands:</p><pre><code>git clone https://github.com/PlayQodeX/activation-engine.git ~/.claude/skills/activate
+node ~/.claude/skills/activate/instance.mjs sync   # registers the /activate-* commands</code></pre></section>
+<section id="everyday"><h2>Everyday commands</h2><div class="tw"><table><thead><tr><th>Command</th><th>What it does</th><th>When to use</th></tr></thead><tbody><tr><td><code>/activate</code></td><td>Loads the rules, memory, coordination files and skills that apply to the current folder, then runs the pre-flight checks.</td><td>At the start of work in any repo.</td></tr><tr><td><code>/activate-scan</code></td><td>Rebuilds the machine index.</td><td>After install, and whenever you add/remove skills or rules.</td></tr><tr><td><code>/activate-list</code></td><td>Shows what the last scan found and how old it is.</td><td>To check the index is fresh (warns at 7 days).</td></tr><tr><td><code>/activate-instances</code></td><td>Lists your saved bundles.</td><td>To see what profiles you have.</td></tr><tr><td><code>/activate-help</code></td><td>This guide, and (re)writes the Markdown + HTML reference.</td><td>When you forget a command.</td></tr></tbody></table></div></section>
+<section id="instances"><h2>Instance commands</h2><p>An instance is a saved bundle of skills + rules + guidelines for one purpose (e.g. <code>frontend</code>, <code>security-audit</code>). Each becomes its own <code>/activate-&lt;name&gt;</code> command.</p><div class="tw"><table><thead><tr><th>Command</th><th>What it does</th></tr></thead><tbody><tr><td><code>/activate create &lt;name&gt; --from-active</code></td><td>Make a bundle from what the current folder resolves to (fastest).</td></tr><tr><td><code>/activate create &lt;name&gt; --skills a,b --rules p --guidelines "g1;g2"</code></td><td>Make a bundle by hand.</td></tr><tr><td><code>/activate add &lt;name&gt; --skills x</code> · <code>remove &lt;name&gt; --guidelines "…"</code></td><td>Edit a bundle's contents.</td></tr><tr><td><code>/activate-&lt;name&gt;</code></td><td>Activate that bundle (one command per instance).</td></tr><tr><td><code>/activate default &lt;name&gt;</code> then <code>/activate --default</code></td><td>Set a per-repo default, then activate it in one flag.</td></tr><tr><td><code>/activate export &lt;name&gt;</code> · <code>import &lt;file&gt;</code></td><td>Move a bundle between machines (portable JSON).</td></tr><tr><td><code>/activate rename &lt;name&gt; &lt;new&gt;</code> · <code>delete &lt;name&gt;</code></td><td>Manage bundles.</td></tr></tbody></table></div></section>
+<section id="flags"><h2>Flags (any command)</h2><div class="tw"><table><thead><tr><th>Flag</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--json</code></td><td>Machine-readable output.</td></tr><tr><td><code>--list</code></td><td>With <code>activate</code>: the saved-index summary.</td></tr><tr><td><code>--default</code></td><td>With <code>activate</code>: this repo's default instance.</td></tr><tr><td><code>--path &lt;dir&gt;</code></td><td>Scope a <code>create</code>/<code>activate</code> to a specific folder.</td></tr></tbody></table></div></section>
+<section id="when"><h2>When to use what</h2><ul><li>Fresh machine, or you added skills → <code>/activate-scan</code></li><li>Starting work in a repo → <code>/activate</code></li><li>You repeat the same setup often → make an instance, then <code>/activate-&lt;name&gt;</code></li><li>Unsure what's indexed / how old → <code>/activate-list</code></li><li>Forgot a command → <code>/activate-help</code></li></ul></section>
+<section id="how"><h2>How activation works</h2><p>Running <code>/activate</code> in a repo prints, in order: the <strong>rule / guideline stack</strong> (global <code>CLAUDE.md</code> + <code>RTK.md</code> → repo <code>CLAUDE.md</code> + <code>context.md</code> → app-level files → project <code>MEMORY.md</code>, sorted broad → narrow so the most specific layer wins); the <strong>coordination / state files</strong> (<code>active-tasks.md</code>, <code>blockers.md</code>, <code>known-bugs.md</code>); and the <strong>skills reachable here</strong>.</p><p>Instance skills are checked against the index and tagged <strong>MISSING</strong> (not on this machine), <strong>untrusted</strong> (a third-party plugin skill), or <strong>new</strong> (added since the last scan), so a bundle stays honest as skills come and go.</p><p>It degrades cleanly: a plain folder with no <code>CLAUDE.md</code>, memory or skills still produces a valid (smaller) result.</p></section>
+<section id="files"><h2>Where things live</h2><pre><code>~/.claude/skills/activate/          the skill
+~/.claude/activation-engine/
+  index.json                       the machine index (regenerable)
+  index.md                         human-readable mirror
+  instances/&lt;slug&gt;.json            your saved bundles
+  activate-help.md / .html         this reference (generated by /activate-help)
+~/.claude/commands/activate-*.md   generated slash commands</code></pre></section>
+<footer>Generated by <code>/activate-help</code> · <a href="https://github.com/PlayQodeX/activation-engine">github.com/PlayQodeX/activation-engine</a></footer>
+</div></body></html>

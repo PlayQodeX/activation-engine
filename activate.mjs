@@ -15,9 +15,9 @@
 
 import path from 'node:path'
 import {
-  INDEX_JSON, INDEX_MD, CMD_PREFIX, HELP_TEXT, exists, read, isUnder, slugOf, rel,
+  INDEX_JSON, INDEX_MD, STATE_DIR, CMD_PREFIX, HELP_TEXT, exists, read, isUnder, slugOf, rel,
   readInstance, listInstances, readState, writeState,
-  resolveWorkspace, memoryFor, findSkill, classifyRef,
+  resolveWorkspace, memoryFor, findSkill, classifyRef, writeHelpDocs,
 } from './lib/common.mjs'
 
 const args = process.argv.slice(2)
@@ -32,6 +32,10 @@ const rawTarget = args.filter((a) => !a.startsWith('--') && a !== instanceName)[
 // ---- help (no index required; single shared source) ------------------------
 if (flag('--help') || flag('-h') || args[0] === 'help') {
   console.log(HELP_TEXT)
+  if (flag('--write')) {
+    const out = writeHelpDocs(opt('--out') ? path.resolve(opt('--out')) : STATE_DIR)
+    console.log(`\nFormatted reference written:\n  ${rel(out.md)}\n  ${rel(out.html)}  (open in a browser)`)
+  }
   process.exit(0)
 }
 
