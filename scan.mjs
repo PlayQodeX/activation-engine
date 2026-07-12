@@ -25,12 +25,18 @@ const args = process.argv.slice(2)
 const flag = (name) => args.includes(name)
 const val = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined }
 const asJson = flag('--json')
-const depth = Number(val('--depth')) || 6
 
+// Reuse the previous index's roots/depth when the user passes no root flags, so a
+// bare re-scan (e.g. /activate-scan) covers the same tree as last time instead of
+// silently shrinking to home-only. Override anytime with --roots/--add-roots, or
+// force a home-only baseline with --home.
+const prevIndex = exists(INDEX_JSON) ? (() => { try { return JSON.parse(read(INDEX_JSON)) } catch { return null } })() : null
 const explicitRoots = (val('--roots') || '').split(',').map((s) => s.trim()).filter(Boolean)
 const addRoots = (val('--add-roots') || '').split(',').map((s) => s.trim()).filter(Boolean)
-let roots = explicitRoots.length ? explicitRoots : [HOME]
+const reusePrev = !explicitRoots.length && !addRoots.length && !flag('--home') && prevIndex?.roots?.length
+let roots = explicitRoots.length ? explicitRoots : (reusePrev ? prevIndex.roots : [HOME])
 roots = [...new Set([...roots, ...addRoots].map((r) => path.resolve(r)))]
+const depth = Number(val('--depth')) || (reusePrev && prevIndex.depth) || 6
 
 const RULE_KINDS = { 'CLAUDE.md': 'CLAUDE.md', 'context.md': 'context.md', 'RTK.md': 'RTK.md' }
 const COORD_KINDS = {
@@ -209,7 +215,7 @@ md.push(`## Workspace skills (${proj.workspaceSkills.length})`)
 for (const s of proj.workspaceSkills) md.push(`- ${s.name} — ${rel(s.dir)}`)
 fs.writeFileSync(INDEX_MD, md.join('\n'))
 
-console.error(`[scan] indexed in ${roots.length} root(s) @ depth ${depth}`)
+console.error(`[scan] indexed ${roots.length} root(s) @ depth ${depth}${reusePrev ? ' (reused previous roots)' : ''}: ${roots.map(rel).join(', ')}`)
 console.error(`[scan] wrote ${rel(INDEX_JSON)}`)
 for (const [k, v] of Object.entries(index.stats)) console.error(`         ${k}: ${v}`)
 if (index.newSinceLastScan.length) {
