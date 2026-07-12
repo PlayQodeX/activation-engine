@@ -135,6 +135,13 @@ if (instanceName) {
   I.push('')
   I.push(`SCOPE MEMORY : ${mem ? rel(mem.path) : '(none matched)'}`)
   I.push(`COORDINATION : ${coord.length ? coord.map((c) => `[${c.kind}] ${rel(c.path)}`).join('  ') : '(none)'}`)
+  // ambient toolbox — always available regardless of what the instance curates
+  const ambientG = (index.global?.skills || []).map((s) => s.name)
+  const ambientP = (index.global?.pluginSkills || []).map((s) => s.name)
+  I.push('')
+  I.push(`ALSO AVAILABLE (ambient — always on, not curated):`)
+  I.push(`  global skills (${ambientG.length}): ${ambientG.join(', ') || '(none)'}`)
+  I.push(`  plugin skills (${ambientP.length}, untrusted by default): ${ambientP.join(', ') || '(none)'}`)
   if (missingSkills.length) I.push(`\n⚠ missing skills (not on this PC's index): ${missingSkills.join(', ')}`)
   if (untrusted.length) I.push(`⚠ untrusted skills (third-party/plugin — vet before use): ${untrusted.join(', ')}`)
   if (fresh.length) I.push(`✦ new since last scan (review): ${fresh.join(', ')}`)

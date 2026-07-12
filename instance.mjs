@@ -190,7 +190,17 @@ switch (verb) {
       seed.rules = ws.ruleStack.filter((r) => r.scope !== 'global').map((r) => collapseHome(r.path)) // globals are always-on
       if (ws.memory) seed.guidelines = [collapseHome(ws.memory.path)]
       seed.roots = [ws.repoRoot]
-      console.log(`[instance] --from-active seeded from ${ws.repoRoot}`)
+      // --include lets you also capture the ambient layers (they apply everywhere,
+      // so they're omitted by default). Values: global, plugins, global-rules, all.
+      const inc = new Set(csv('--include').flatMap((v) => v === 'all' ? ['global', 'plugins', 'global-rules'] : [v]))
+      if (inc.has('global')) seed.skills.push(...(index.global?.skills || []).map((s) => s.name))
+      if (inc.has('plugins')) seed.skills.push(...(index.global?.pluginSkills || []).map((s) => s.name))
+      if (inc.has('global-rules')) {
+        if (index.global?.claudeMd) seed.rules.push(collapseHome(index.global.claudeMd))
+        if (index.global?.rtkMd) seed.rules.push(collapseHome(index.global.rtkMd))
+      }
+      console.log(`[instance] --from-active seeded from ${ws.repoRoot}${inc.size ? ` (+include: ${[...inc].join(', ')})` : ''}`)
+      if (!inc.size) console.log('[instance] note: global + plugin skills are ambient (always available) so they are NOT listed. Add them with --include global,plugins,global-rules (or --include all).')
     }
     const inst = {
       name, slug, purpose: opt('--purpose') || '',

@@ -31,7 +31,7 @@ An instance is a saved bundle of skills + rules + guidelines for one purpose (e.
 
 | Command | What it does |
 | --- | --- |
-| `/activate create <name> --from-active` | Make a bundle from what the current folder resolves to (fastest). |
+| `/activate create <name> --from-active` | Make a bundle from what the current folder resolves to (fastest). Captures workspace-specific skills + rules; global/plugin skills are ambient (always on) so they are omitted by default. Add them with `--include global,plugins,global-rules` (or `--include all`). |
 | `/activate create <name> --skills a,b --rules p --guidelines "g1;g2"` | Make a bundle by hand. |
 | `/activate add <name> --skills x` · `remove <name> --guidelines "…"` | Edit a bundle's contents. |
 | `/activate-<name>` | Activate that bundle (one command per instance). |
