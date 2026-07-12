@@ -76,7 +76,7 @@ Everything is one command — `/activate` — plus a few shortcuts. Type
 | `/activate-scan` | Rebuilds the machine index. | After install, and whenever you add/remove skills or rules. |
 | `/activate-list` | Shows what the last scan found and how old it is. | To check the index is fresh (it warns at 7 days). |
 | `/activate-instances` | Lists your saved bundles. | To see what profiles you have. |
-| `/activate-help` | The full command guide. | When you forget a command. |
+| `/activate-help` | Prints the command guide **and (re)writes a formatted Markdown + HTML reference** to `~/.claude/activation-engine/`. | When you forget a command, or want a shareable doc. |
 
 ### Instances (saved bundles)
 
@@ -92,6 +92,11 @@ Everything is one command — `/activate` — plus a few shortcuts. Type
 
 Any command also accepts `--json` for machine-readable output. `/activate <verb>`
 works too (e.g. `/activate list`, `/activate create foo …`).
+
+📄 **Formatted reference:** [`docs/activate-help.md`](docs/activate-help.md) ·
+[`docs/activate-help.html`](docs/activate-help.html) — the same guide as a
+structured document. `/activate-help` regenerates these into
+`~/.claude/activation-engine/` on your machine (open the `.html` in a browser).
 
 ---
 
