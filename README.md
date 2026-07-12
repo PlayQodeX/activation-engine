@@ -146,6 +146,24 @@ and pruned for any that no longer exists. Those command files are marked as
 generated, so hand-written commands are never touched. Re-sync manually any time
 with `node $SKILL/instance.mjs sync`.
 
+### Slash commands
+
+`sync` also writes three always-present **meta commands** so the read-only verbs
+are discoverable in the `/` menu (not just describable to the agent):
+
+| Command | Runs |
+|---------|------|
+| `/activate` | workspace bootstrap for the current folder |
+| `/activate-scan` | rebuild the machine index |
+| `/activate-list` | saved-index summary + staleness |
+| `/activate-instances` | list instance bundles |
+| `/activate-<slug>` | activate that instance (one per instance) |
+
+`/activate <verb>` also dispatches directly — `/activate list`, `/activate scan`,
+`/activate instances`, `/activate create <name> …`. Run `node $SKILL/instance.mjs
+sync` once after install to generate the meta commands (`scan`, `list`,
+`instances` are reserved instance names as a result).
+
 ### Borrowed from Obsidian
 
 The design mirrors patterns from [Obsidian](https://obsidian.md/)'s vaults /
