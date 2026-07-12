@@ -40,6 +40,7 @@ const now = () => new Date().toISOString()
 // Reserved slugs so an instance can never clobber them.
 const p = (f) => f.replace(/\\/g, '/')
 const META = {
+  help: { desc: 'activation-engine: guide to every command (what / when)', run: `node "${p(ACTIVATE_MJS)}" --help`, then: 'Present this command guide to the user verbatim; do not summarise it away.' },
   scan: { desc: 'activation-engine: scan the machine + rebuild the index', run: `node "${p(SCAN_MJS)}"`, then: 'Report the stats it wrote, and flag any new/untrusted skills.' },
   list: { desc: 'activation-engine: show the saved index summary + staleness', run: `node "${p(ACTIVATE_MJS)}" --list`, then: 'Summarise; offer a rescan if the index is stale.' },
   instances: { desc: 'activation-engine: list instance bundles', run: `node "${p(INSTANCE_MJS)}" list`, then: 'List the instances and their /activate-<slug> commands.' },
